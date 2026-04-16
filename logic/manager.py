@@ -6,6 +6,7 @@ from __future__ import annotations
 import asyncio
 import random
 import logging
+import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
@@ -55,6 +56,7 @@ class NightActions:
     mafia_target:      Optional[int] = None
     doctor_target:     Optional[int] = None
     detective_target:  Optional[int] = None
+    detective_shot_target: Optional[int] = None
     bodyguard_target:  Optional[int] = None
     maniac_target:     Optional[int] = None
     vigilante_target:  Optional[int] = None
@@ -121,6 +123,7 @@ class GameManager:
         self.log:        list[str] = []
         self._task:      Optional[asyncio.Task] = None
         self.last_words_queue: list[int] = []  # O'lgan o'yinchilar navbati
+        self.last_words_deadlines: dict[int, float] = {}
         self.kamikaze_winner_id: Optional[int] = None
 
     # ── O'YINCHILAR ──────────────────────────
@@ -301,6 +304,35 @@ class GameManager:
         p.night_action_done = True
         return True, f"✅ {t.full_name} tanlandi."
 
+    def set_detective_check(self, uid: int, target_id: int) -> tuple[bool, str]:
+        p = self.get(uid)
+        t = self.get(target_id)
+        if not p or p.role != RoleType.DETECTIVE:
+            return False, "Faqat Komissar!"
+        if not t or not t.is_alive:
+            return False, "Nishon topilmadi!"
+        self.na.detective_target = target_id
+        self.na.acted.add(uid)
+        p.night_target = target_id
+        p.night_action_done = True
+        return True, f"✅ {t.full_name} tekshiruvga olindi."
+
+    def set_detective_shot(self, uid: int, target_id: int) -> tuple[bool, str]:
+        p = self.get(uid)
+        t = self.get(target_id)
+        if not p or p.role != RoleType.DETECTIVE:
+            return False, "Faqat Komissar!"
+        if p.detective_shot_used:
+            return False, "O'q otish huquqi allaqachon ishlatilgan!"
+        if not t or not t.is_alive:
+            return False, "Nishon topilmadi!"
+        p.detective_shot_used = True
+        self.na.detective_shot_target = target_id
+        self.na.acted.add(uid)
+        p.night_target = target_id
+        p.night_action_done = True
+        return True, f"✅ {t.full_name} ga o'q tayyorlandi."
+
     def set_lawyer_target(self, uid: int, target_id: int) -> tuple[bool, str]:
         p = self.get(uid)
         t = self.get(target_id)
@@ -416,6 +448,23 @@ class GameManager:
                         res.events.append(
                             f"🗡️ Qonunchi noto'g'ri nishon oldi! "
                             f"{vt.mention} halok bo'ldi... qonunchi esa aybdorlik his qilmoqda."
+                        )
+
+        # 4.5. KOMISSAR O'QI
+        if na.detective_shot_target:
+            dt = self.get(na.detective_shot_target)
+            shooter = next((p for p in self.alive() if p.role == RoleType.DETECTIVE), None)
+            if dt and dt.is_alive and shooter:
+                if dt.role in MAFIA_ROLES or dt.role == RoleType.MANIAC:
+                    if self._try_kill(dt, res, "komissar o'qi"):
+                        shooter.kills += 1
+                        res.killed.append(na.detective_shot_target)
+                        res.events.append(f"🔍 {shooter.mention} o'q uzdi va {dt.mention} yiqildi!")
+                else:
+                    if self._try_kill(shooter, res, "komissar xatosi"):
+                        res.killed.append(shooter.user_id)
+                        res.events.append(
+                            f"🔍 {shooter.mention} begunoh odamga o'q uzdi va o'zi halok bo'ldi..."
                         )
 
         # 5. MAFIA O'LDIRISHI
@@ -562,6 +611,7 @@ class GameManager:
                     leader_id = None
                 else:
                     target.was_voted_out = True
+                    self.queue_last_words(target.user_id, settings.LAST_WORDS_TIMEOUT)
 
                     # SUITSID va KAMIKAZE: birini olib ketadi
                     if target.role in (RoleType.SUICIDE, RoleType.KAMIKAZE):
@@ -569,6 +619,7 @@ class GameManager:
                         if victims:
                             v = random.choice(victims)
                             if self._try_kill(v, temp_res, "portlash"):
+                                self.queue_last_words(v.user_id, settings.LAST_WORDS_TIMEOUT)
                                 extra_event = (
                                     f"💣 {target.mention} portladi va "
                                     f"{v.mention}ni ham olib ketdi!"
@@ -584,6 +635,33 @@ class GameManager:
 
         self.vote = None
         return leader_id, extra_event
+
+    def queue_last_words(self, uid: int, timeout: int | None = None) -> bool:
+        p = self.get(uid)
+        if not p or uid in self.last_words_deadlines:
+            return False
+        timeout = timeout or 0
+        deadline = time.monotonic() + timeout if timeout > 0 else float("inf")
+        self.last_words_queue.append(uid)
+        self.last_words_deadlines[uid] = deadline
+        return True
+
+    def take_last_words(self, uid: int) -> bool:
+        p = self.get(uid)
+        deadline = self.last_words_deadlines.get(uid)
+        if deadline is None:
+            return False
+        if deadline != float("inf") and time.monotonic() > deadline:
+            self.last_words_deadlines.pop(uid, None)
+            if uid in self.last_words_queue:
+                self.last_words_queue.remove(uid)
+            return False
+        self.last_words_deadlines.pop(uid, None)
+        if uid in self.last_words_queue:
+            self.last_words_queue.remove(uid)
+        if p:
+            p.last_words_used = True
+        return True
 
     # ── SNAYPER ───────────────────────────────
     def sniper_shoot(self, uid: int, target_id: int) -> tuple[bool, str]:

@@ -27,6 +27,7 @@ class Player:
     night_action_done:  bool = False
     vigilante_guilt:    bool = False  # Qonunchi begunoh o'ldirsa — keyingi tun o'ladi
     vigilante_used:     bool = False  # Qonunchi qobiliyatini ishlatdimi
+    detective_shot_used: bool = False  # Komissar o'q otish huquqidan foydalandimi
 
     # ── MAXSUS HOLATLAR ───────────────────────
     sniper_shots:      int = 1
@@ -38,6 +39,7 @@ class Player:
     mayor_revealed:    bool = False   # Mer o'z rolini oshkor qildimi
     omadli_luck_used:  bool = False   # Omadli bir martalik omadni ishlatdimi
     kamikaze_triggered: bool = False  # Kamikaze portlashni ishga tushirdimi
+    last_words_used:   bool = False   # O'yinchi oxirgi so'zini ishlatdimi
 
     # ── STATISTIKA ────────────────────────────
     kills:             int = 0

@@ -103,6 +103,7 @@ async def main():
     await setup_commands(bot)
 
     me = await bot.get_me()
+    settings.BOT_USERNAME = me.username or ""
     log.info(f"✅ Bot: @{me.username} (ID:{me.id})")
     log.info(
         f"⚙️  Min:{settings.MIN_PLAYERS} | Max:{settings.MAX_PLAYERS} | "

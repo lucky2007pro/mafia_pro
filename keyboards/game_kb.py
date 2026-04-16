@@ -56,10 +56,30 @@ def vote_kb(players: list[Player], chat_id: int) -> InlineKeyboardMarkup:
     return b.as_markup()
 
 
+def deep_link_kb(bot_username: str, payload: str, button_text: str) -> InlineKeyboardMarkup:
+    b = InlineKeyboardBuilder()
+    if bot_username:
+        b.button(text=button_text, url=f"https://t.me/{bot_username}?start={payload}")
+    return b.as_markup()
+
+
+def vote_entry_kb(bot_username: str, chat_id: int) -> InlineKeyboardMarkup:
+    return deep_link_kb(bot_username, f"vote_{chat_id}", "🗳 Ovoz berish")
+
+
 def don_action_kb(chat_id: int) -> InlineKeyboardMarkup:
     b = InlineKeyboardBuilder()
     b.button(text="🔫 O'ldirish nishoni", callback_data=f"don_kill:{chat_id}")
     b.button(text="🕵️ Detektivni aniqlash", callback_data=f"don_check:{chat_id}")
+    b.adjust(1)
+    return b.as_markup()
+
+
+def detective_action_kb(chat_id: int) -> InlineKeyboardMarkup:
+    b = InlineKeyboardBuilder()
+    b.button(text="🔍 Tekshirish", callback_data=f"detective_check:{chat_id}")
+    b.button(text="🔫 O'q otish", callback_data=f"detective_shot:{chat_id}")
+    b.button(text="⏭️ Bu tun harakatsiz", callback_data=f"skip_action:{chat_id}")
     b.adjust(1)
     return b.as_markup()
 

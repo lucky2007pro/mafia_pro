@@ -5,6 +5,7 @@ Barcha 16 rol qo'llab-quvvatlanadi.
 from __future__ import annotations
 import asyncio
 import logging
+import time
 from typing import cast
 from aiogram import Router, Bot, F
 from aiogram.types import CallbackQuery
@@ -14,12 +15,13 @@ from logic.manager import GamePhase
 from logic.roles import RoleType, Team, get_role
 from keyboards.game_kb import (
     target_kb, vote_kb, don_action_kb,
-    witch_kb, lawyer_kb, reveal_mayor_kb
+    witch_kb, lawyer_kb, reveal_mayor_kb,
+    detective_action_kb, vote_entry_kb
 )
 from utils.texts import (
     night_start_text, dawn_text, day_text,
     vote_start_text, vote_progress_text,
-    execution_text, game_over_text
+    execution_text, game_over_text, last_words_text
 )
 from config import settings
 from database.db import save_game_result, add_coins
@@ -43,6 +45,32 @@ async def begin_night(chat_id: int, bot: Bot, group_id: int):
     await bot.send_message(
         group_id, night_start_text(night_num), parse_mode="HTML"
     )
+
+    async def _stage_notice(text: str):
+        try:
+            await bot.send_message(group_id, text, parse_mode="HTML")
+        except Exception:
+            pass
+
+    role_stage_notices = [
+        (RoleType.DETECTIVE, "🔍 <b>Komissar tekshiruvga chiqdi.</b>"),
+        (RoleType.DOCTOR, "💊 <b>Shifokor davolashga ketdi.</b>"),
+        (RoleType.BODYGUARD, "🛡️ <b>Qo'riqchi himoya joyiga chiqdi.</b>"),
+        (RoleType.LAWYER, "⚖️ <b>Mafia himoya bosqichi boshlandi.</b>"),
+        (RoleType.MAFIA, "🔫 <b>Mafia yakuniy hujumga tayyorlanmoqda.</b>"),
+        (RoleType.DON, "👑 <b>Don mafiya rejasini boshqarmoqda.</b>"),
+        (RoleType.GODFATHER, "🤵 <b>Godfather soyada ishlayapti.</b>"),
+        (RoleType.MANIAC, "🔪 <b>Manyak tun bo'yi kezmoqda.</b>"),
+        (RoleType.VIGILANTE, "🗡️ <b>Qonunchi adolat izlamoqda.</b>"),
+        (RoleType.WITCH, "🧙 <b>Jodugar maxfiy harakatga o'tdi.</b>"),
+        (RoleType.DAYDI, "🧥 <b>Daydi kuzatuvga chiqdi.</b>"),
+        (RoleType.JOURNALIST, "📰 <b>Jurnalist maxfiy yozmoqda.</b>"),
+        (RoleType.SPY, "🕵️ <b>Agent kuzatishga tayyor.</b>"),
+    ]
+    alive_roles = {p.role for p in alive if p.role}
+    for role, text in role_stage_notices:
+        if role in alive_roles:
+            await _stage_notice(text)
 
     # Har bir aktiv rolga DM yuborish
     for p in alive:
@@ -89,6 +117,15 @@ async def begin_night(chat_id: int, bot: Bot, group_id: int):
                 # Qonunchi qobiliyatini ishlatib bo'lgan
                 pass
 
+            elif p.role == RoleType.DETECTIVE:
+                await bot.send_message(
+                    p.user_id,
+                    f"🔍 <b>KOMISSAR — Tun {night_num}</b>\n\n"
+                    f"Tekshirish yoki o'q otishdan birini tanlang.",
+                    parse_mode="HTML",
+                    reply_markup=detective_action_kb(chat_id),
+                )
+
             else:
                 exclude = [p.user_id] if p.role not in (
                     RoleType.DOCTOR, RoleType.BODYGUARD
@@ -113,6 +150,26 @@ async def _night_timer(chat_id: int, bot: Bot, group_id: int):
     game = get_game(chat_id)
     if game and game.phase == GamePhase.NIGHT:
         await process_dawn(chat_id, bot, group_id)
+
+
+async def _offer_last_words(chat_id: int, bot: Bot, dead_ids: list[int]):
+    game = get_game(chat_id)
+    if not game:
+        return
+
+    for uid in dead_ids:
+        p = game.get(uid)
+        if not p or p.is_alive:
+            continue
+        deadline = game.last_words_deadlines.get(uid)
+        if deadline is None:
+            continue
+        if deadline != float("inf") and time.monotonic() > deadline:
+            continue
+        try:
+            await bot.send_message(uid, last_words_text(settings.LAST_WORDS_TIMEOUT), parse_mode="HTML")
+        except Exception:
+            pass
 
 
 # ══════════════════════════════════════════════
@@ -201,6 +258,73 @@ async def cb_don_check_result(cb: CallbackQuery, bot: Bot):
     if ok:
         try:
             await cb.message.edit_text(f"🕵️ Tekshiruv natijasi: {result}", parse_mode="HTML")
+        except Exception:
+            pass
+        if game.all_night_done():
+            await process_dawn(chat_id, bot, chat_id)
+
+
+# Komissar / Detektiv
+@router.callback_query(F.data.startswith("detective_check:"))
+async def cb_detective_check(cb: CallbackQuery):
+    chat_id = int(cb.data.split(":")[1])
+    game = get_game(chat_id)
+    if not game:
+        return
+    others = [p for p in game.alive() if p.user_id != cb.from_user.id]
+    await cb.message.edit_text(
+        "🔍 <b>Kimni tekshirasiz?</b>",
+        parse_mode="HTML",
+        reply_markup=target_kb(others, "detective_check_target", chat_id),
+    )
+    await cb.answer()
+
+
+@router.callback_query(F.data.startswith("detective_check_target:"))
+async def cb_detective_check_target(cb: CallbackQuery, bot: Bot):
+    _, tid, cid = cb.data.split(":")
+    target_id, chat_id = int(tid), int(cid)
+    game = get_game(chat_id)
+    if not game:
+        return
+    ok, result = game.set_detective_check(cb.from_user.id, target_id)
+    await cb.answer(result, show_alert=True)
+    if ok:
+        try:
+            await cb.message.edit_text(f"🔍 Tekshiruv tanlandi: {game.get(target_id).full_name}", parse_mode="HTML")
+        except Exception:
+            pass
+        if game.all_night_done():
+            await process_dawn(chat_id, bot, chat_id)
+
+
+@router.callback_query(F.data.startswith("detective_shot:"))
+async def cb_detective_shot(cb: CallbackQuery):
+    chat_id = int(cb.data.split(":")[1])
+    game = get_game(chat_id)
+    if not game:
+        return
+    others = [p for p in game.alive() if p.user_id != cb.from_user.id]
+    await cb.message.edit_text(
+        "🔫 <b>Kimga o'q uzasiz?</b>",
+        parse_mode="HTML",
+        reply_markup=target_kb(others, "detective_shot_target", chat_id),
+    )
+    await cb.answer()
+
+
+@router.callback_query(F.data.startswith("detective_shot_target:"))
+async def cb_detective_shot_target(cb: CallbackQuery, bot: Bot):
+    _, tid, cid = cb.data.split(":")
+    target_id, chat_id = int(tid), int(cid)
+    game = get_game(chat_id)
+    if not game:
+        return
+    ok, result = game.set_detective_shot(cb.from_user.id, target_id)
+    await cb.answer(result, show_alert=True)
+    if ok:
+        try:
+            await cb.message.edit_text(f"🔫 O'q tanlandi: {game.get(target_id).full_name}", parse_mode="HTML")
         except Exception:
             pass
         if game.all_night_done():
@@ -353,6 +477,21 @@ async def process_dawn(chat_id: int, bot: Bot, group_id: int):
         parse_mode="HTML"
     )
 
+    dead_ids = []
+    for uid in res.killed:
+        p = game.get(uid)
+        if p and not p.is_alive:
+            dead_ids.append(uid)
+    if res.bodyguard_died:
+        p = game.get(res.bodyguard_died)
+        if p and not p.is_alive:
+            dead_ids.append(res.bodyguard_died)
+
+    if dead_ids:
+        for uid in dead_ids:
+            game.queue_last_words(uid, settings.LAST_WORDS_TIMEOUT)
+        await _offer_last_words(chat_id, bot, dead_ids)
+
     # G'alaba tekshiruvi
     win = game.check_win()
     if win:
@@ -419,9 +558,21 @@ async def begin_voting(chat_id: int, bot: Bot, group_id: int):
         group_id,
         vote_start_text(),
         parse_mode="HTML",
-        reply_markup=vote_kb(alive, chat_id)
+        reply_markup=vote_entry_kb(settings.BOT_USERNAME, chat_id)
     )
     game.msg_ids["vote"] = msg.message_id
+
+    for p in alive:
+        try:
+            await bot.send_message(
+                p.user_id,
+                vote_start_text() + "\n\n<b>Quyidan ovoz bering:</b>",
+                parse_mode="HTML",
+                reply_markup=vote_kb(alive, chat_id),
+            )
+        except Exception:
+            pass
+
     asyncio.create_task(_vote_timer(chat_id, bot, group_id))
 
 
@@ -498,6 +649,20 @@ async def process_vote(chat_id: int, bot: Bot, group_id: int):
         parse_mode="HTML"
     )
 
+    dead_ids = []
+    if exec_id:
+        p = game.get(exec_id)
+        if p and not p.is_alive:
+            dead_ids.append(exec_id)
+
+    for uid in list(game.last_words_queue):
+        p = game.get(uid)
+        if p and not p.is_alive and uid not in dead_ids:
+            dead_ids.append(uid)
+
+    if dead_ids:
+        await _offer_last_words(chat_id, bot, dead_ids)
+
     # G'alaba tekshiruvi
     win = game.check_win()
     if win:
@@ -543,6 +708,17 @@ async def cb_snipe(cb: CallbackQuery, bot: Bot):
     await cb.answer(msg[:200], show_alert=True)
     if ok:
         await bot.send_message(chat_id, f"🎯 {msg}", parse_mode="HTML")
+        dead_ids = []
+        target = game.get(target_id)
+        shooter = game.get(cb.from_user.id)
+        if target and not target.is_alive:
+            dead_ids.append(target_id)
+        elif shooter and not shooter.is_alive:
+            dead_ids.append(cb.from_user.id)
+        for uid in dead_ids:
+            game.queue_last_words(uid, settings.LAST_WORDS_TIMEOUT)
+        if dead_ids:
+            await _offer_last_words(chat_id, bot, dead_ids)
         win = game.check_win()
         if win:
             await finish_game(chat_id, bot, chat_id, win[0], win[1])

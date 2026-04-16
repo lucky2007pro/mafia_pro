@@ -6,6 +6,7 @@ from pydantic import Field
 class Settings(BaseSettings):
     # ── BOT ──────────────────────────────────
     BOT_TOKEN: str = Field(..., description="BotFather token")
+    BOT_USERNAME: str = Field(default="", description="Bot username for deep links")
     BOT_WEBHOOK_URL: str = Field(default="", description="Webhook URL (bo'sh = polling)")
     BOT_WEBHOOK_PORT: int = Field(default=8443)
     ADMIN_IDS: list[int] = Field(default=[], description="Super admin Telegram ID'lari")
