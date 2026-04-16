@@ -63,7 +63,7 @@ HELP_COMMANDS_TEXT = (
     "/coins — Tangalar\n"
     "/shop — Do'kon\n"
     "/buy passport — Soxta passport xarid\n"
-    "/buycoins <son> — Tanga sotib olish (demo)\n"
+    "/buycoins &lt;son&gt; — Tanga sotib olish (demo)\n"
     "/mystats — Profilim\n"
     "/snipe — Snayper otishi\n"
     "/reveal — Mer oshkor qilish\n\n"
