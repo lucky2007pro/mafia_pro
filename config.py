@@ -19,7 +19,7 @@ class Settings(BaseSettings):
 
     # ── O'YIN SOZLAMALARI ─────────────────────
     MIN_PLAYERS: int = 4
-    MAX_PLAYERS: int = 15
+    MAX_PLAYERS: int = 100
     LOBBY_TIMEOUT: int = 120
     NIGHT_TIMEOUT: int = 45
     DAY_DISCUSSION_TIME: int = 90
@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     BUY_COINS_RATE: int = 10            # /buycoins: 1 birlik uchun beriladigan tanga
 
     # ── ROL TAQSIMLASH ────────────────────────
+    # Eslatma: asosiy taqsimlash endi dynamic (logic/manager.py).
+    # ROLE_DIST legacy/fallback sifatida saqlanmoqda.
     # format: {player_count: {role: count, ...}}
     ROLE_DIST: dict = {
         4:  dict(mafia=1, don=0, doctor=1, detective=0, bodyguard=0,

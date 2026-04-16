@@ -5,8 +5,9 @@ Barcha 16 rol qo'llab-quvvatlanadi.
 from __future__ import annotations
 import asyncio
 import logging
+from typing import cast
 from aiogram import Router, Bot, F
-from aiogram.types import CallbackQuery, ChatPermissions
+from aiogram.types import CallbackQuery
 
 from logic.registry import get_game, delete_game
 from logic.manager import GamePhase
@@ -39,7 +40,6 @@ async def begin_night(chat_id: int, bot: Bot, group_id: int):
     night_num  = game.day_num + 1
     alive      = game.alive()
 
-    await _mute(bot, group_id, True)
     await bot.send_message(
         group_id, night_start_text(night_num), parse_mode="HTML"
     )
@@ -299,7 +299,6 @@ async def process_dawn(chat_id: int, bot: Bot, group_id: int):
         return
 
     game.phase = GamePhase.DAWN
-    await _mute(bot, group_id, False)
 
     res = game.resolve_night()
 
@@ -333,7 +332,7 @@ async def process_dawn(chat_id: int, bot: Bot, group_id: int):
         for p in game.alive():
             if p.role == RoleType.DETECTIVE:
                 verdict = "🔴 MAFIA!" if dr["is_mafia"] else "🟢 Begunoh (Shahar)"
-                role_cfg = get_role(dr["role"])
+                role_cfg = get_role(cast(RoleType, cast(object, dr["role"])))
                 try:
                     await bot.send_message(
                         p.user_id,
@@ -610,16 +609,5 @@ async def finish_game(chat_id: int, bot: Bot, group_id: int, winner: Team, reaso
     except Exception as e:
         log.error(f"DB saqlashda xato: {e}")
 
-    await _mute(bot, group_id, False)
     delete_game(chat_id)
 
-
-# ══════════════════════════════════════════════
-#  GURUH MUTE / UNMUTE
-# ══════════════════════════════════════════════
-async def _mute(bot: Bot, chat_id: int, mute: bool):
-    try:
-        perms = ChatPermissions(can_send_messages=not mute)
-        await bot.set_chat_permissions(chat_id, perms)
-    except Exception as e:
-        log.debug(f"Mute/unmute xato: {e}")

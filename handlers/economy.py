@@ -36,6 +36,8 @@ def _profile_text(full_name: str, stats, wallet) -> str:
 
 @router.message(Command("profile"))
 async def cmd_profile(m: Message):
+    if m.chat.type != "private":
+        return await m.answer("ℹ️ Bu buyruq faqat shaxsiy chatda ishlaydi.")
     stats = await get_user_stats(m.from_user.id)
     wallet = await get_wallet(m.from_user.id)
     await m.answer(_profile_text(m.from_user.full_name, stats, wallet), parse_mode="HTML")
@@ -43,6 +45,8 @@ async def cmd_profile(m: Message):
 
 @router.message(Command("coins"))
 async def cmd_coins(m: Message):
+    if m.chat.type != "private":
+        return await m.answer("ℹ️ Bu buyruq faqat shaxsiy chatda ishlaydi.")
     wallet = await get_wallet(m.from_user.id)
     await m.answer(
         f"💰 <b>Sizning balansingiz</b>\n\n"
@@ -55,6 +59,8 @@ async def cmd_coins(m: Message):
 
 @router.message(Command("shop"))
 async def cmd_shop(m: Message):
+    if m.chat.type != "private":
+        return await m.answer("ℹ️ Bu buyruq faqat shaxsiy chatda ishlaydi.")
     wallet = await get_wallet(m.from_user.id)
     await m.answer(
         f"🛒 <b>DO'KON</b>\n\n"
@@ -67,6 +73,8 @@ async def cmd_shop(m: Message):
 
 @router.message(Command("buy"))
 async def cmd_buy(m: Message):
+    if m.chat.type != "private":
+        return await m.answer("ℹ️ Bu buyruq faqat shaxsiy chatda ishlaydi.")
     parts = (m.text or "").split(maxsplit=1)
     if len(parts) < 2:
         return await m.answer("Foydalanish: /buy passport")
@@ -93,6 +101,8 @@ async def cmd_buy(m: Message):
 
 @router.message(Command("buycoins"))
 async def cmd_buycoins(m: Message):
+    if m.chat.type != "private":
+        return await m.answer("ℹ️ Bu buyruq faqat shaxsiy chatda ishlaydi.")
     parts = (m.text or "").split(maxsplit=1)
     units = 1
     if len(parts) == 2:

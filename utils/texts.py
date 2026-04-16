@@ -2,9 +2,10 @@
 O'yin xabarlari shablonlari — barcha matnlar shu yerda.
 """
 from __future__ import annotations
+from typing import cast
 from logic.manager import NightResult
 from logic.player import Player
-from logic.roles import get_role
+from logic.roles import get_role, RoleType
 from config import settings
 
 
@@ -89,7 +90,7 @@ def dawn_text(day_num: int, res: NightResult, players: dict) -> str:
     if res.journalist_reveal:
         jr = res.journalist_reveal
         p  = players.get(jr["target_id"])
-        cfg = get_role(jr["role"])
+        cfg = get_role(cast(RoleType, cast(object, jr["role"])))
         nm  = p.mention if p else jr["name"]
         lines.append(
             f"📰 <b>JURNALIST XABARI:</b> {nm} — {cfg.emoji} <b>{cfg.name_uz}</b>!"

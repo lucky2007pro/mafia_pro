@@ -7,6 +7,8 @@ router = Router()
 
 @router.message(Command("mystats"))
 async def cmd_mystats(m: Message):
+    if m.chat.type != "private":
+        return await m.answer("ℹ️ Bu buyruq faqat shaxsiy chatda ishlaydi.")
     u = await get_user_stats(m.from_user.id)
     if not u or u.games_played == 0:
         return await m.answer("📊 Hali biror o'yin o'ynamagansiz!")
@@ -26,6 +28,8 @@ async def cmd_mystats(m: Message):
 
 @router.message(Command("top"))
 async def cmd_top(m: Message):
+    if m.chat.type != "private":
+        return await m.answer("ℹ️ Bu buyruq faqat shaxsiy chatda ishlaydi.")
     players = await get_top_players(10)
     if not players:
         return await m.answer("Hali statistika yo'q.")

@@ -151,30 +151,93 @@ class GameManager:
     def alive_neutral(self) -> list[Player]:
         return [p for p in self.alive() if p.role in NEUTRAL_ROLES]
 
+    def _build_balanced_role_list(self, n: int) -> list[RoleType]:
+        """O'yinchilar soniga qarab muqobil va balansli rol tarkibi."""
+        if n <= 8:
+            # Talab bo'yicha: 1 mafia tomoni, 1 shifokor, 1 komissar, qolgani fuqaro
+            killer = random.choice([RoleType.MAFIA, RoleType.DON])
+            roles = [killer, RoleType.DOCTOR, RoleType.DETECTIVE]
+            roles.extend([RoleType.CIVILIAN] * max(0, n - len(roles)))
+            return roles
+
+        # 9+ da asosiy yadro
+        roles: list[RoleType] = [
+            RoleType.DON,
+            RoleType.MAFIA,
+            RoleType.DOCTOR,
+            RoleType.DETECTIVE,
+        ]
+
+        # Bosqichma-bosqich kengayish (9-15 uchun ham, undan yuqoriga ham asos bo'ladi)
+        progressive: list[tuple[int, RoleType]] = [
+            (10, RoleType.BODYGUARD),
+            (11, RoleType.MAYOR),
+            (12, RoleType.LAWYER),
+            (13, RoleType.SNIPER),
+            (14, RoleType.SPY),
+            (15, RoleType.JOURNALIST),
+            (15, RoleType.MANIAC),
+        ]
+        for min_players, role in progressive:
+            if n >= min_players:
+                roles.append(role)
+
+        if n <= 15:
+            roles.extend([RoleType.CIVILIAN] * max(0, n - len(roles)))
+            return roles[:n]
+
+        max_mafia = max(2, n // 4)          # taxm. 25% atrofida
+        max_neutral = 1 + max(0, (n - 12) // 6)
+
+        extra_cycle: list[RoleType] = [
+            RoleType.CIVILIAN,
+            RoleType.DAYDI,
+            RoleType.OMADLI,
+            RoleType.VIGILANTE,
+            RoleType.ESCORT,
+            RoleType.WITCH,
+            RoleType.GODFATHER,
+            RoleType.SUICIDE,
+            RoleType.KAMIKAZE,
+            RoleType.BODYGUARD,
+            RoleType.SNIPER,
+            RoleType.SPY,
+            RoleType.JOURNALIST,
+            RoleType.DOCTOR,
+            RoleType.DETECTIVE,
+            RoleType.CIVILIAN,
+        ]
+
+        idx = 0
+        safety = 0
+        while len(roles) < n:
+            cand = extra_cycle[idx % len(extra_cycle)]
+            idx += 1
+            safety += 1
+
+            mafia_cnt = sum(1 for r in roles if r in MAFIA_ROLES)
+            neutral_cnt = sum(1 for r in roles if r in NEUTRAL_ROLES)
+
+            if cand in MAFIA_ROLES and mafia_cnt >= max_mafia:
+                if safety > len(extra_cycle) * 3:
+                    roles.append(RoleType.CIVILIAN)
+                continue
+            if cand in NEUTRAL_ROLES and neutral_cnt >= max_neutral:
+                if safety > len(extra_cycle) * 3:
+                    roles.append(RoleType.CIVILIAN)
+                continue
+
+            roles.append(cand)
+
+        return roles[:n]
+
     # ── ROL TAQSIMLASH ────────────────────────
     def assign_roles(self) -> dict[int, RoleType]:
         n = len(self.players)
         if n < settings.MIN_PLAYERS:
             raise ValueError(f"Kamida {settings.MIN_PLAYERS} kishi kerak!")
 
-        key = min(settings.ROLE_DIST.keys(), key=lambda k: abs(k - n))
-        dist = settings.ROLE_DIST[key]
-
-        role_list: list[RoleType] = []
-        for role_str, cnt in dist.items():
-            try:
-                rt = RoleType(role_str)
-                role_list.extend([rt] * cnt)
-            except ValueError:
-                pass
-
-        # Yetishmayotganlarni fuqaro bilan to'ldirish
-        while len(role_list) < n:
-            role_list.append(RoleType.CIVILIAN)
-
-        # Ortiqcha rollarni adolatli tanlash (oldingi tartibga bog'lanib qolmasin)
-        if len(role_list) > n:
-            role_list = random.sample(role_list, n)
+        role_list = self._build_balanced_role_list(n)
         random.shuffle(role_list)
 
         players = list(self.players.values())

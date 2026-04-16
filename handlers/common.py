@@ -5,42 +5,24 @@ from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 from keyboards.help_kb import help_roles_main_kb, help_roles_all_kb, help_back_kb
-from keyboards.main_menu import private_menu_kb, group_menu_kb
+from keyboards.main_menu import private_menu_kb
 from logic.roles import RoleType, get_role
 from utils.texts import RULES
 
 router = Router()
 
 HELP_ALIAS_TO_ROLE: dict[str, RoleType] = {
-    "civilian": RoleType.CIVILIAN,
-    "don": RoleType.DON,
-    "mafia": RoleType.MAFIA,
+    # Legacy callback keylari uchun moslik
     "komissar": RoleType.DETECTIVE,
     "serjant": RoleType.BODYGUARD,
-    "doctor": RoleType.DOCTOR,
     "qotil": RoleType.MANIAC,
     "mashuqa": RoleType.ESCORT,
-    "lawyer": RoleType.LAWYER,
+    "suitsid": RoleType.SUICIDE,
     "suicide": RoleType.SUICIDE,
-    "daydi": RoleType.DAYDI,
-    "omadli": RoleType.OMADLI,
-    "kamikaze": RoleType.KAMIKAZE,
-}
-
-HELP_ALIAS_TITLES: dict[str, str] = {
-    "civilian": "Tinch axoli",
-    "don": "Don",
-    "mafia": "Mafia",
-    "komissar": "Komissar Katani",
-    "serjant": "Serjant",
-    "doctor": "Shifokor",
-    "qotil": "Qotil",
-    "mashuqa": "Ma'shuqa",
-    "lawyer": "Advokat",
-    "suicide": "Suitsid",
-    "daydi": "Daydi",
-    "omadli": "Omadli",
-    "kamikaze": "Kamikaze",
+    "civilian": RoleType.CIVILIAN,
+    "doctor": RoleType.DOCTOR,
+    "don": RoleType.DON,
+    "mafia": RoleType.MAFIA,
 }
 
 EXTRA_HELP_ROLES: dict[str, tuple[str, str]] = {}
@@ -50,11 +32,7 @@ def _role_details_text(role_key: str) -> str:
     role = HELP_ALIAS_TO_ROLE.get(role_key)
     if role:
         cfg = get_role(role)
-        alias_title = HELP_ALIAS_TITLES.get(role_key, cfg.name_uz)
-        role_line = f"{cfg.emoji} <b>{alias_title}</b>"
-        if alias_title != cfg.name_uz:
-            role_line += f"\n<i>Asosiy rol: {cfg.emoji} {cfg.name_uz}</i>"
-        return f"{role_line}\n\n{cfg.full_desc}"
+        return f"{cfg.emoji} <b>{cfg.name_uz}</b>\n\n{cfg.full_desc}"
 
     # help_role callbackida role.value yuborilganda to'g'ridan-to'g'ri ochish
     try:
@@ -113,11 +91,12 @@ async def cmd_start(message: Message):
         await message.answer(
             "🎭 <b>Mafia Bot</b> tayyor!\n/newgame bilan boshlang.",
             parse_mode="HTML",
-            reply_markup=group_menu_kb(),
         )
 
 @router.message(Command("help"))
 async def cmd_help(message: Message):
+    if message.chat.type != "private":
+        return await message.answer("ℹ️ Bu buyruq faqat shaxsiy chatda ishlaydi.")
     await message.answer(
         "📚 <b>Mavjud rollar ro'yxati</b>\n\n"
         "Uning tavsifini ko'rish uchun rol nomini bosing:",
@@ -143,7 +122,7 @@ async def cb_help_all_roles(cb: CallbackQuery):
         "🎭 <b>Barcha mavjud rollar</b>\n"
         "Kerakli rolni tanlab tavsifini oching.",
         parse_mode="HTML",
-        reply_markup=help_roles_all_kb(),
+        reply_markup=help_roles_main_kb(),
     )
     await cb.answer()
 
@@ -170,4 +149,6 @@ async def cb_help_role(cb: CallbackQuery):
 
 @router.message(Command("rules"))
 async def cmd_rules(message: Message):
+    if message.chat.type != "private":
+        return await message.answer("ℹ️ Bu buyruq faqat shaxsiy chatda ishlaydi.")
     await message.answer(RULES, parse_mode="HTML")

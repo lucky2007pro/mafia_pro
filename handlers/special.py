@@ -12,6 +12,8 @@ router = Router()
 
 @router.message(Command("snipe"))
 async def cmd_snipe(message: Message):
+    if message.chat.type != "private":
+        return await message.answer("ℹ️ Bu buyruq faqat shaxsiy chatda ishlaydi.")
     uid = message.from_user.id
     player_game = next(
         ((cid, g) for cid, g in all_games().items() if uid in g.players), None
@@ -40,6 +42,8 @@ async def cmd_snipe(message: Message):
 
 @router.message(Command("reveal"))
 async def cmd_reveal(message: Message):
+    if message.chat.type != "private":
+        return await message.answer("ℹ️ Bu buyruq faqat shaxsiy chatda ishlaydi.")
     uid = message.from_user.id
     player_game = next(
         ((cid, g) for cid, g in all_games().items() if uid in g.players), None

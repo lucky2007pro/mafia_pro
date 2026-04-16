@@ -13,7 +13,7 @@ from aiogram.types import (
     BotCommandScopeAllChatAdministrators,
 )
 from config import settings
-from middlewares import AntiSpamMiddleware, ErrorMiddleware, UserTracker
+from middlewares import AntiSpamMiddleware, ErrorMiddleware, UserTracker, DeadPlayerMessageCleaner
 from handlers import common, game, actions, admin, stats, special, economy
 from database.db import init_db
 
@@ -33,12 +33,12 @@ async def setup_commands(bot: Bot) -> None:
     await bot.set_my_commands(
         commands=[
             BotCommand(command="start", description="botni ishga tushirish"),
-            BotCommand(command="help", description="buyruqlar"),
             BotCommand(command="profile", description="profil va inventar"),
             BotCommand(command="coins", description="tanga balansi"),
             BotCommand(command="shop", description="do'kon"),
             BotCommand(command="buy", description="buyum xarid qilish"),
             BotCommand(command="buycoins", description="tanga sotib olish"),
+            BotCommand(command="help", description="buyruqlar"),
             BotCommand(command="mystats", description="profil statistikasi"),
             BotCommand(command="top", description="top oyinchilar"),
             BotCommand(command="rules", description="oyin qoidalari"),
@@ -55,8 +55,6 @@ async def setup_commands(bot: Bot) -> None:
             BotCommand(command="startgame", description="oyinni boshlash"),
             BotCommand(command="players", description="oyinchilar royxati"),
             BotCommand(command="stats", description="guruh statistikasi"),
-            BotCommand(command="top", description="top oyinchilar"),
-            BotCommand(command="rules", description="oyin qoidalari"),
             BotCommand(command="endgame", description="oyinni toxtatish"),
         ],
         scope=BotCommandScopeAllGroupChats(),
@@ -89,6 +87,7 @@ async def main():
 
     # Middleware'lar
     dp.update.outer_middleware(ErrorMiddleware())
+    dp.message.outer_middleware(DeadPlayerMessageCleaner())
     dp.message.middleware(UserTracker())
     dp.callback_query.middleware(AntiSpamMiddleware(settings.VOTE_COOLDOWN))
 

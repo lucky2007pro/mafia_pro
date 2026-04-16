@@ -1,8 +1,9 @@
 import time, logging
 from collections import defaultdict
-from typing import Any, Awaitable, Callable
 from aiogram import BaseMiddleware
-from aiogram.types import TelegramObject, CallbackQuery, Message
+from aiogram.types import CallbackQuery, Message
+
+from logic.registry import get_game
 
 log = logging.getLogger(__name__)
 
@@ -46,3 +47,32 @@ class UserTracker(BaseMiddleware):
                 await get_or_create_user(user.id, user.username or "", user.full_name)
             except Exception: pass
         return await handler(event, data)
+
+
+class DeadPlayerMessageCleaner(BaseMiddleware):
+    """Guruhda o'lgan o'yinchining xabarini darhol o'chiradi."""
+    async def __call__(self, handler, event, data):
+        if not isinstance(event, Message):
+            return await handler(event, data)
+
+        if event.chat.type not in ("group", "supergroup"):
+            return await handler(event, data)
+
+        user = event.from_user
+        if not user or user.is_bot:
+            return await handler(event, data)
+
+        game = get_game(event.chat.id)
+        if not game:
+            return await handler(event, data)
+
+        player = game.get(user.id)
+        if player and not player.is_alive:
+            try:
+                await event.delete()
+            except Exception:
+                pass
+            return
+
+        return await handler(event, data)
+
