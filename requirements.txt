@@ -1,0 +1,12 @@
+aiogram==3.7.0
+redis==5.0.3
+aioredis==2.0.1
+pydantic-settings==2.2.1
+python-dotenv==1.0.1
+aiosqlite==0.20.0
+SQLAlchemy==2.0.29
+asyncpg==0.29.0
+ujson==5.9.0
+aiofiles==23.2.1
+loguru==0.7.2
+orjson==3.10.1
