@@ -177,7 +177,7 @@ async def cb_startgame(cb: CallbackQuery, bot: Bot):
         return await cb.answer("O'yin holati o'zgardi!", show_alert=True)
     if len(game.players) < settings.MIN_PLAYERS:
         return await cb.answer(
-            f"Yetarli o'yinchi yo'q ({len(game.players)}/{settings.MIN_PLAYERS}). /addbot <soni> yordamida AI bot qo'shishingiz mumkin.",
+            f"Yetarli o'yinchi yo'q ({len(game.players)}/{settings.MIN_PLAYERS}). Pastdagi menyudan AI bot qo'shishingiz mumkin.",
             show_alert=True
         )
     await cb.answer()
@@ -201,7 +201,7 @@ async def cmd_startgame(message: Message, bot: Bot):
     if not game or game.phase != GamePhase.WAITING:
         return await message.answer("Aktiv lobby yo'q. /newgame bilan boshlang.")
     if len(game.players) < settings.MIN_PLAYERS:
-        return await message.answer(f"Kamida {settings.MIN_PLAYERS} kishi kerak! /addbot <soni> yordamida AI bot qo'shishingiz mumkin.")
+        return await message.answer(f"Kamida {settings.MIN_PLAYERS} kishi kerak! Pastdagi tugma orqali AI bot qo'shishingiz mumkin.")
     await _do_start(cid, bot, cid)
 
 

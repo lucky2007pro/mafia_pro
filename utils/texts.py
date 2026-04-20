@@ -21,7 +21,7 @@ def lobby_text(players: dict, chat_id: int) -> str:
     status = (
         f"✅ Yetarli! Admin boshlashi mumkin."
         if n >= settings.MIN_PLAYERS
-        else f"⏳ Yana <b>{settings.MIN_PLAYERS - n}</b> kishi kerak...\n(<i>/addbot <soni> yordamida AI qo'shishingiz mumkin</i>)"
+        else f"⏳ Yana <b>{settings.MIN_PLAYERS - n}</b> kishi kerak...\n(<i>Pastdagi tugma orqali o'yinga AI bot qo'shishingiz mumkin</i>)"
     )
     return (
         f"🎭 <b>MAFIA O'YINI — LOBBY</b>\n\n"
