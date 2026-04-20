@@ -15,6 +15,8 @@ class Player:
     is_alive:        bool = True
     is_muted:        bool = False
     role_revealed:   bool = False    # Jurnalist oshkor qildimi
+    is_bot:          bool = False
+    bot_api_key:     Optional[str] = None
 
     # ── HIMOYA ────────────────────────────────
     protected_by_doctor:    bool = False

@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     BOT_WEBHOOK_URL: str = Field(default="", description="Webhook URL (bo'sh = polling)")
     BOT_WEBHOOK_PORT: int = Field(default=8443)
     ADMIN_IDS: list[int] = Field(default=[], description="Super admin Telegram ID'lari")
+    GEMINI_API_KEYS: list[str] = Field(default=[], description="Gemini AI kalitlari ro'yxati")
 
     # ── REDIS (100+ concurrent o'yin uchun) ──
     REDIS_URL: str = Field(default="redis://localhost:6379/0")

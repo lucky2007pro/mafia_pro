@@ -45,6 +45,48 @@ async def cmd_newgame(message: Message, bot: Bot):
     asyncio.create_task(_lobby_timer(cid, bot, cid))
 
 
+@router.message(Command("addbot"))
+async def cmd_addbot(message: Message, bot: Bot):
+    if message.chat.type not in ("group", "supergroup"):
+        return
+    cid = message.chat.id
+    game = get_game(cid)
+    if not game or game.phase != GamePhase.WAITING:
+        return await message.answer("Aktiv lobby yo'q yoki o'yin boshlangan!")
+    
+    try:
+        count = int(message.text.split()[1])
+    except (IndexError, ValueError):
+        return await message.answer("Foydalanish: /addbot <soni>")
+        
+    if not settings.GEMINI_API_KEYS:
+        return await message.answer("Bot sozlamalarida Gemini API kalitlari yo'q!")
+        
+    added = 0
+    import random
+    for _ in range(count):
+        bot_id = -random.randint(100000, 999999)
+        api_key = random.choice(settings.GEMINI_API_KEYS)
+        if game.add(bot_id, f"ai_bot_{abs(bot_id)}", f"🤖 AI Bot {abs(bot_id)%1000}"):
+            p = game.get(bot_id)
+            p.is_bot = True
+            p.bot_api_key = api_key
+            added += 1
+            
+    await message.answer(f"✅ {added} ta AI bot qo'shildi.")
+    
+    if "lobby" in game.msg_ids:
+        try:
+            await bot.edit_message_text(
+                lobby_text(game.players, cid),
+                chat_id=cid,
+                message_id=game.msg_ids["lobby"],
+                parse_mode="HTML",
+                reply_markup=lobby_kb(cid)
+            )
+        except Exception:
+            pass
+
 async def _lobby_timer(chat_id: int, bot: Bot, group_id: int):
     await asyncio.sleep(settings.LOBBY_TIMEOUT)
     game = get_game(chat_id)
@@ -114,7 +156,7 @@ async def cb_startgame(cb: CallbackQuery, bot: Bot):
         return await cb.answer("O'yin holati o'zgardi!", show_alert=True)
     if len(game.players) < settings.MIN_PLAYERS:
         return await cb.answer(
-            f"Yetarli o'yinchi yo'q ({len(game.players)}/{settings.MIN_PLAYERS})",
+            f"Yetarli o'yinchi yo'q ({len(game.players)}/{settings.MIN_PLAYERS}). /addbot <soni> yordamida AI bot qo'shishingiz mumkin.",
             show_alert=True
         )
     await cb.answer()
@@ -138,7 +180,7 @@ async def cmd_startgame(message: Message, bot: Bot):
     if not game or game.phase != GamePhase.WAITING:
         return await message.answer("Aktiv lobby yo'q. /newgame bilan boshlang.")
     if len(game.players) < settings.MIN_PLAYERS:
-        return await message.answer(f"Kamida {settings.MIN_PLAYERS} kishi kerak!")
+        return await message.answer(f"Kamida {settings.MIN_PLAYERS} kishi kerak! /addbot <soni> yordamida AI bot qo'shishingiz mumkin.")
     await _do_start(cid, bot, cid)
 
 
@@ -182,13 +224,15 @@ async def _do_start(chat_id: int, bot: Bot, group_id: int):
     game.phase = GamePhase.STARTING
     n = len(game.players)
 
+    from keyboards.game_kb import night_actions_kb
     await bot.send_message(
         group_id,
         f"🎭 <b>O'YIN BOSHLANMOQDA!</b>\n\n"
         f"👥 O'yinchilar: <b>{n}</b>\n"
         f"📨 Har bir o'yinchiga shaxsiy xabarda rol yuborilmoqda...\n\n"
         f"⚠️ <i>Agar DM kelmasa — botga /start yuboring!</i>",
-        parse_mode="HTML"
+        parse_mode="HTML",
+        reply_markup=night_actions_kb(settings.BOT_USERNAME, chat_id)
     )
 
     # Rollarni taqsimlash
@@ -212,6 +256,9 @@ async def _do_start(chat_id: int, bot: Bot, group_id: int):
         )
         if p.role in MAFIA_ROLES and len(game.alive_mafia()) > 1:
             dm += f"\n\n👥 <b>Mafia jamoasi:</b>\n{mafia_list}"
+
+        if p.is_bot:
+            continue
 
         try:
             await bot.send_message(p.user_id, dm, parse_mode="HTML")

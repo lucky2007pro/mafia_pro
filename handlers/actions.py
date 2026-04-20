@@ -42,8 +42,10 @@ async def begin_night(chat_id: int, bot: Bot, group_id: int):
     night_num  = game.day_num + 1
     alive      = game.alive()
 
+    from keyboards.game_kb import night_actions_kb
     await bot.send_message(
-        group_id, night_start_text(night_num), parse_mode="HTML"
+        group_id, night_start_text(night_num), parse_mode="HTML",
+        reply_markup=night_actions_kb(settings.BOT_USERNAME, chat_id)
     )
 
     async def _stage_notice(text: str):
@@ -143,6 +145,9 @@ async def begin_night(chat_id: int, bot: Bot, group_id: int):
             log.warning(f"[{chat_id}] {p.user_id} ga DM yuborilmadi: {e}")
 
     asyncio.create_task(_night_timer(chat_id, bot, group_id))
+    
+    from logic.ai_bot import process_bots_night
+    asyncio.create_task(process_bots_night(game, bot, group_id))
 
 
 async def _night_timer(chat_id: int, bot: Bot, group_id: int):
@@ -574,6 +579,9 @@ async def begin_voting(chat_id: int, bot: Bot, group_id: int):
             pass
 
     asyncio.create_task(_vote_timer(chat_id, bot, group_id))
+    
+    from logic.ai_bot import process_bots_vote
+    asyncio.create_task(process_bots_vote(game, bot, group_id))
 
 
 async def _vote_timer(chat_id: int, bot: Bot, group_id: int):

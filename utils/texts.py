@@ -21,7 +21,7 @@ def lobby_text(players: dict, chat_id: int) -> str:
     status = (
         f"✅ Yetarli! Admin boshlashi mumkin."
         if n >= settings.MIN_PLAYERS
-        else f"⏳ Yana <b>{settings.MIN_PLAYERS - n}</b> kishi kerak..."
+        else f"⏳ Yana <b>{settings.MIN_PLAYERS - n}</b> kishi kerak...\n(<i>/addbot <soni> yordamida AI qo'shishingiz mumkin</i>)"
     )
     return (
         f"🎭 <b>MAFIA O'YINI — LOBBY</b>\n\n"
@@ -39,17 +39,16 @@ def night_start_text(night_num: int) -> str:
     return (
         f"🌙 <b>TUN {night_num} BOSHLANDI</b>\n\n"
         f"😴 Shahar uxlamoqda...\n\n"
-        f"🤫 Har bir faol rolga shaxsiy bot xabari ketadi.\n"
-        f"🔍 Komissar — tekshiruv yoki o'q otish\n"
-        f"💊 Shifokor — davolash\n"
-        f"🛡️ Qo'riqchi — himoya\n"
-        f"🔫 Mafia — yakuniy hujum\n"
+        f"🔫 Mafia — qurbonni tanlang\n"
+        f"💊 Shifokor — kimni daving?\n"
+        f"🔍 Detektiv — kimni tekshirasiz?\n"
+        f"🛡️ Qo'riqchi — kimni himoya qilasiz?\n"
         f"🔪 Manyak — bu tun kim?\n"
         f"💃 Faoliyatchi — kimni bandlaysiz?\n"
         f"🧙 Jodugar — qaysi sehringiz?\n"
         f"🧥 Daydi — kimni kuzatasiz?\n\n"
         f"⏳ <b>{settings.NIGHT_TIMEOUT}</b> soniya vaqt bor.\n"
-        f"📨 <i>Shaxsiy xabarlaringizni tekshiring — hech kimning roli guruhda oshkor qilinmaydi!</i>"
+        f"📨 <i>Shaxsiy xabarlaringizni tekshiring!</i>"
     )
 
 

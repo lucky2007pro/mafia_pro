@@ -121,3 +121,10 @@ def reveal_mayor_kb(chat_id: int) -> InlineKeyboardMarkup:
     b.button(text="📢 O'z rolingizni oshkor qiling (+1 ovoz)", callback_data=f"mayor_reveal:{chat_id}")
     b.adjust(1)
     return b.as_markup()
+
+
+def night_actions_kb(bot_username: str, chat_id: int) -> InlineKeyboardMarkup:
+    """
+    Tun boshlanganida har bir o'yinchi uchun botga o'tish tugmasi.
+    """
+    return deep_link_kb(bot_username, f"night_{chat_id}", "🤖 Botga o'tish")
