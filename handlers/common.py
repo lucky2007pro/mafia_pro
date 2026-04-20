@@ -3,7 +3,7 @@ common.py — /start, /help, /rules
 """
 import time
 from aiogram import Router, F
-from aiogram.filters import Command
+from aiogram.filters import Command, BaseFilter
 from aiogram.types import Message, CallbackQuery
 from keyboards.help_kb import help_roles_main_kb, help_roles_all_kb, help_back_kb
 from keyboards.main_menu import private_menu_kb
@@ -134,7 +134,7 @@ async def cmd_start(message: Message):
         )
 
 
-class _PendingLastWordsFilter:
+class _PendingLastWordsFilter(BaseFilter):
     async def __call__(self, message: Message) -> bool:
         if message.chat.type != "private" or not message.text or message.text.startswith("/"):
             return False

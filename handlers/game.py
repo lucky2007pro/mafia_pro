@@ -133,6 +133,27 @@ async def cb_leave(cb: CallbackQuery):
         return await cb.message.edit_text("❌ Lobby yopildi.")
     await _refresh_lobby(cb, cid, game)
 
+@router.callback_query(F.data.startswith("addbot_btn:"))
+async def cb_addbot_btn(cb: CallbackQuery):
+    cid = int(cb.data.split(":")[1])
+    game = get_game(cid)
+    if not game or game.phase != GamePhase.WAITING:
+        return await cb.answer("Lobby mavjud emas!", show_alert=True)
+    if not settings.GEMINI_API_KEYS:
+        return await cb.answer("API kalitlari yo'q!", show_alert=True)
+    
+    import random
+    bot_id = -random.randint(100000, 999999)
+    api_key = random.choice(settings.GEMINI_API_KEYS)
+    if game.add(bot_id, f"ai_bot_{abs(bot_id)}", f"🤖 AI Bot {abs(bot_id)%1000}"):
+        p = game.get(bot_id)
+        p.is_bot = True
+        p.bot_api_key = api_key
+        await cb.answer(f"✅ AI Bot qo'shildi! Jami o'yinchilar: {len(game.players)}")
+        await _refresh_lobby(cb, cid, game)
+    else:
+        await cb.answer("❌ Qo'shib bo'lmadi (bo'sh joy yo'q).", show_alert=True)
+
 
 async def _refresh_lobby(cb: CallbackQuery, cid: int, game):
     try:

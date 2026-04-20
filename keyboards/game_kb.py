@@ -10,9 +10,10 @@ def lobby_kb(chat_id: int) -> InlineKeyboardMarkup:
     b = InlineKeyboardBuilder()
     b.button(text="✋ Qo'shilish",      callback_data=f"join:{chat_id}")
     b.button(text="🚪 Chiqish",         callback_data=f"leave:{chat_id}")
+    b.button(text="🤖 AI Bot qo'shish", callback_data=f"addbot_btn:{chat_id}")
     b.button(text="🎮 O'yinni boshlash", callback_data=f"startgame:{chat_id}")
     b.button(text="❌ Bekor qilish",    callback_data=f"cancelgame:{chat_id}")
-    b.adjust(2, 2)
+    b.adjust(2, 1, 2)
     return b.as_markup()
 
 
