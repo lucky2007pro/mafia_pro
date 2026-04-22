@@ -41,6 +41,14 @@ def active_count() -> int:
     return len(_games)
 
 
+def find_game_by_player(user_id: int) -> GameManager | None:
+    """O'yinchi qaysi o'yinda ekanini topish."""
+    for g in _games.values():
+        if user_id in g.players:
+            return g
+    return None
+
+
 def server_stats() -> dict:
     """Server holati — monitoring uchun."""
     return {

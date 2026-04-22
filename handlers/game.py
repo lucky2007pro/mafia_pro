@@ -8,15 +8,62 @@ from aiogram import Router, Bot, F
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 
-from logic.registry import create_game, get_game, delete_game, exists
+from logic.registry import create_game, get_game, delete_game, exists, find_game_by_player
 from logic.manager import GamePhase
 from logic.roles import RoleType, Team, get_role, MAFIA_ROLES
 from keyboards.game_kb import lobby_kb
-from utils.texts import lobby_text
+from utils.texts import lobby_text, last_words_text
 from config import settings
 
 log = logging.getLogger(__name__)
 router = Router()
+
+
+# ──────────────────────────────────────────────
+#  CHAT HANDLERS (Mafia Chat & Last Words)
+# ──────────────────────────────────────────────
+@router.message(F.chat.type == "private")
+async def handle_private_messages(message: Message, bot: Bot):
+    if message.text and message.text.startswith("/"):
+        return # Komandalarni o'tkazib yuboramiz
+
+    game = find_game_by_player(message.from_user.id)
+    if not game:
+        return
+
+    player = game.get(message.from_user.id)
+    if not player:
+        return
+
+    # 1. OXIRGI SO'ZLAR (Last Words)
+    if game.phase == GamePhase.LAST_WORDS and not player.is_alive:
+        if message.from_user.id in game.last_words_queue:
+            if not player.last_words_used:
+                player.last_words_used = True
+                game.last_words_queue.remove(message.from_user.id)
+                text = f"💬 <b>{player.full_name} vasiyati:</b>\n\n<i>\"{message.text}\"</i>"
+                await bot.send_message(game.chat_id, text, parse_mode="HTML")
+                await message.answer("✅ Vasiyatingiz guruhga yuborildi.")
+            else:
+                await message.answer("⚠️ Siz allaqachon vasiyat qoldirdingiz.")
+            return
+
+    # 2. MAFIA CHAT (Night)
+    if game.phase == GamePhase.NIGHT and player.is_alive and player.role in MAFIA_ROLES:
+        mafia_members = [p for p in game.alive() if p.role in MAFIA_ROLES and p.user_id != player.user_id]
+        if not mafia_members:
+            # Agar botlardan boshqa hech kim bo'lmasa
+            pass
+        
+        text = f"👥 <b>[Mafia Chat] {player.full_name}:</b> {message.text}"
+        for m in mafia_members:
+            if not m.is_bot:
+                try:
+                    await bot.send_message(m.user_id, text, parse_mode="HTML")
+                except Exception:
+                    pass
+        await message.answer("✅ Xabar mafia a'zolariga yuborildi.")
+        return
 
 
 # ──────────────────────────────────────────────
@@ -109,6 +156,7 @@ async def cb_addbot_btn(cb: CallbackQuery):
         p = game.get(bot_id)
         p.is_bot = True
         p.bot_api_key = api_key
+        p.bot_trait = random.choice(["tajovuzkor", "jim o'tiruvchi", "shubhachi", "mantiqiy", "aldamchi"])
         await cb.answer(f"✅ AI Bot qo'shildi! Jami o'yinchilar: {len(game.players)}")
         await _refresh_lobby(cb, cid, game)
     else:
@@ -257,3 +305,49 @@ async def _do_start(chat_id: int, bot: Bot, group_id: int):
 
     from handlers.actions import begin_night
     await begin_night(chat_id, bot, group_id)
+
+
+@router.message(Command("addbot"))
+async def cmd_addbot(message: Message, bot: Bot):
+    cid = message.chat.id
+    game = get_game(cid)
+    if not game or game.phase != GamePhase.WAITING:
+        return await message.answer("Aktiv lobby yo'q yoki o'yin boshlangan!")
+    
+    try:
+        parts = message.text.split()
+        count = int(parts[1]) if len(parts) > 1 else 1
+    except (IndexError, ValueError):
+        return await message.answer("Foydalanish: /addbot <soni>")
+        
+    if not settings.GEMINI_API_KEYS:
+        return await message.answer("Bot sozlamalarida Gemini API kalitlari yo'q!")
+    
+    added = 0
+    import random
+    for _ in range(count):
+        bot_id = -random.randint(100000, 999999)
+        api_key = random.choice(settings.GEMINI_API_KEYS)
+        if game.add(bot_id, f"ai_bot_{abs(bot_id)}", f"🤖 AI Bot {abs(bot_id)%1000}"):
+            p = game.get(bot_id)
+            p.is_bot = True
+            p.bot_api_key = api_key
+            p.bot_trait = random.choice(["tajovuzkor", "jim o'tiruvchi", "shubhachi", "mantiqiy", "aldamchi"])
+            added += 1
+            
+    await message.answer(f"✅ {added} ta AI bot qo'shildi.")
+    await _refresh_lobby_msg(message.chat.id, bot, game)
+
+async def _refresh_lobby_msg(cid: int, bot: Bot, game):
+    mid = game.msg_ids.get("lobby")
+    if not mid: return
+    try:
+        await bot.edit_message_text(
+            lobby_text(game.players, cid),
+            chat_id=cid,
+            message_id=mid,
+            parse_mode="HTML",
+            reply_markup=lobby_kb(cid)
+        )
+    except Exception:
+        pass

@@ -43,6 +43,12 @@ async def begin_night(chat_id: int, bot: Bot, group_id: int):
     alive      = game.alive()
 
     from keyboards.game_kb import night_actions_kb
+    if settings.NIGHT_ANIMATION:
+        try:
+            await bot.send_animation(group_id, settings.NIGHT_ANIMATION)
+        except Exception:
+            pass
+
     await bot.send_message(
         group_id, night_start_text(night_num), parse_mode="HTML",
         reply_markup=night_actions_kb(settings.BOT_USERNAME, chat_id)
@@ -431,6 +437,12 @@ async def process_dawn(chat_id: int, bot: Bot, group_id: int):
 
     res = game.resolve_night()
 
+    if settings.DAY_ANIMATION:
+        try:
+            await bot.send_animation(group_id, settings.DAY_ANIMATION)
+        except Exception:
+            pass
+
     # SPY — mafia nishonini biladi
     if res.spy_info:
         for p in game.alive():
@@ -496,6 +508,9 @@ async def process_dawn(chat_id: int, bot: Bot, group_id: int):
         for uid in dead_ids:
             game.queue_last_words(uid, settings.LAST_WORDS_TIMEOUT)
         await _offer_last_words(chat_id, bot, dead_ids)
+        # Vasiyat uchun kutish
+        game.phase = GamePhase.LAST_WORDS
+        await asyncio.sleep(settings.LAST_WORDS_TIMEOUT + 1)
 
     # G'alaba tekshiruvi
     win = game.check_win()
@@ -635,7 +650,7 @@ async def _refresh_vote(cb: CallbackQuery, chat_id: int, game):
     total  = len(alive)
     try:
         await cb.message.edit_text(
-            vote_progress_text(alive, tally, voted, total),
+            vote_progress_text(alive, tally, voted, total, game.vote.votes, game.players, game.private_voting),
             parse_mode="HTML",
             reply_markup=vote_kb(alive, chat_id)
         )
@@ -649,11 +664,12 @@ async def process_vote(chat_id: int, bot: Bot, group_id: int):
         return
 
     game.phase = GamePhase.EXECUTION
+    votes_data = game.vote.votes if game.vote else {}
     exec_id, extra = game.resolve_vote()
 
     await bot.send_message(
         group_id,
-        execution_text(exec_id, game.players, extra),
+        execution_text(exec_id, game.players, extra, votes_data, game.private_voting),
         parse_mode="HTML"
     )
 
@@ -670,6 +686,8 @@ async def process_vote(chat_id: int, bot: Bot, group_id: int):
 
     if dead_ids:
         await _offer_last_words(chat_id, bot, dead_ids)
+        game.phase = GamePhase.LAST_WORDS
+        await asyncio.sleep(settings.LAST_WORDS_TIMEOUT + 1)
 
     # G'alaba tekshiruvi
     win = game.check_win()
@@ -727,6 +745,11 @@ async def cb_snipe(cb: CallbackQuery, bot: Bot):
             game.queue_last_words(uid, settings.LAST_WORDS_TIMEOUT)
         if dead_ids:
             await _offer_last_words(chat_id, bot, dead_ids)
+            game.phase = GamePhase.LAST_WORDS
+            await asyncio.sleep(settings.LAST_WORDS_TIMEOUT + 1)
+            # Revert to DAY if no win
+            if not game.check_win():
+                game.phase = GamePhase.DAY
         win = game.check_win()
         if win:
             await finish_game(chat_id, bot, chat_id, win[0], win[1])

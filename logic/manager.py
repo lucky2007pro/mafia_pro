@@ -125,6 +125,7 @@ class GameManager:
         self.last_words_queue: list[int] = []  # O'lgan o'yinchilar navbati
         self.last_words_deadlines: dict[int, float] = {}
         self.kamikaze_winner_id: Optional[int] = None
+        self.private_voting: bool = settings.PRIVATE_VOTING
 
     # ── O'YINCHILAR ──────────────────────────
     def add(self, uid: int, uname: str, name: str) -> bool:
@@ -156,6 +157,17 @@ class GameManager:
 
     def _build_balanced_role_list(self, n: int) -> list[RoleType]:
         """O'yinchilar soniga qarab muqobil va balansli rol tarkibi."""
+        if n <= 6:
+            # Kichik guruhlar uchun majburiy himoya rollari
+            killer = random.choice([RoleType.MAFIA, RoleType.DON])
+            # 4-6 kishi uchun har doim Shifokor yoki Omadli rolini beramiz
+            protector = random.choice([RoleType.DOCTOR, RoleType.OMADLI])
+            roles = [killer, protector]
+            if n >= 5:
+                roles.append(RoleType.DETECTIVE)
+            roles.extend([RoleType.CIVILIAN] * max(0, n - len(roles)))
+            return roles
+
         if n <= 8:
             # Talab bo'yicha: 1 mafia tomoni, 1 shifokor, 1 komissar, qolgani fuqaro
             killer = random.choice([RoleType.MAFIA, RoleType.DON])
@@ -266,6 +278,8 @@ class GameManager:
         na = self.na
 
         if role in (RoleType.MAFIA, RoleType.DON, RoleType.GODFATHER):
+            if self.day_num == 0:
+                return False, "Birinchi tun — tinchlik tuni! Mafiya bu tun hech kimni o'ldirolmaydi."
             na.mafia_target = target_id
         elif role == RoleType.DOCTOR:
             if uid == target_id:
@@ -399,6 +413,26 @@ class GameManager:
             target.omadli_luck_used = True
             res.events.append(f"🍀 {target.mention} omad bilan o'limdan qutuldi! ({reason})")
             return False
+        if not target.shield_used:
+            from database.db import get_wallet
+            import asyncio
+            async def check_shield():
+                w = await get_wallet(target.user_id)
+                return w.shields > 0
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                has_shield = loop.run_until_complete(check_shield())
+            finally:
+                loop.close()
+            if has_shield:
+                target.shield_used = True
+                async def use_shield():
+                    from database.db import buy_shield
+                    await buy_shield(target.user_id)
+                asyncio.create_task(use_shield())
+                res.events.append(f"🛡️ {target.mention} bir martalik himoyasi bilan omon qoldi! ({reason})")
+                return False
         target.is_alive = False
         return True
 
@@ -729,8 +763,14 @@ class GameManager:
 
         # Mafia shaharni egalladi
         non_mafia_threat = len(city_alive) + len(maniac_alive)
-        if mafia_alive and len(mafia_alive) >= non_mafia_threat:
-            return (Team.MAFIA, "🔫 MAFIA g'olib! Ular shaharni nazorat ostiga oldi.")
+        
+        # Kichik guruhlar (<=6) uchun oxirgi shaharlik o'lguncha davom etadi
+        if len(self.players) <= 6:
+            if not city_alive and not maniac_alive:
+                return (Team.MAFIA, "🔫 MAFIA g'olib! Barcha qarshiliklar yo'q qilindi.")
+        else:
+            if mafia_alive and len(mafia_alive) >= non_mafia_threat:
+                return (Team.MAFIA, "🔫 MAFIA g'olib! Ular shaharni nazorat ostiga oldi.")
 
         # Barcha mafia va tahdid yo'q
         if not mafia_alive and not maniac_alive:

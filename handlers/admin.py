@@ -90,6 +90,17 @@ async def cmd_gamestatus(m: Message):
     await m.answer("\n".join(lines), parse_mode="HTML")
 
 
+@router.message(Command("set_privacy"))
+async def cmd_set_privacy(m: Message):
+    if not await is_admin(m): return await m.answer("⛔ Faqat adminlar!")
+    game = get_game(m.chat.id)
+    if not game: return await m.answer("O'yin yo'q.")
+    
+    game.private_voting = not game.private_voting
+    status = "YASHIRIN (faqat natija)" if game.private_voting else "OCHIQ (kim kimga ovoz bergani ko'rinadi)"
+    await m.answer(f"🗳️ Ovoz berish rejimi o'zgartirildi: <b>{status}</b>", parse_mode="HTML")
+
+
 @router.message(Command("kick"))
 async def cmd_kick(m: Message):
     if not await is_admin(m): return await m.answer("⛔ Faqat adminlar!")

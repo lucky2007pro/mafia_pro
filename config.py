@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     VOTE_TIMEOUT: int = 50
     LAST_WORDS_TIMEOUT: int = 15        # Vasiyat yozish vaqti
     VOTE_COOLDOWN: float = 0.8          # Anti-spam: tugmalar orasidagi min vaqt
+    PRIVATE_VOTING: bool = False        # Ovozlar yashirinmi? (default: ochiq)
 
     # ── SCALING ───────────────────────────────
     MAX_GAMES_PER_SERVER: int = 100     # Bir serverda parallel o'yinlar
@@ -47,6 +48,14 @@ class Settings(BaseSettings):
     WIN_COINS_REWARD: int = 20          # G'alaba uchun beriladigan tanga
     FAKE_PASSPORT_PRICE: int = 120      # Do'kondagi soxta passport narxi
     BUY_COINS_RATE: int = 10            # /buycoins: 1 birlik uchun beriladigan tanga
+    SHIELD_PRICE: int = 150             # Bir martalik shaxsiy himoya narxi
+    INFO_PRICE: int = 100               # O'yin ichida ma'lumot sotib olish narxi
+
+    # ── ANIMATSIYALAR ─────────────────────────
+    # Quyidagi linklar o'rniga o'zingizning GIF/Video linklaringizni qo'yishingiz mumkin.
+    # Bo'sh qolsa — animatsiya yuborilmaydi.
+    NIGHT_ANIMATION: str = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExMmw0eHl4eHl4eHl4eHl4eHl4eHl4eHl4eHl4eHl4eHl4eHl4JmVwPXYxX2ludGVybmFsX2dpZl9ieV9pZCZjdD1n/3o7TKMG6I3pXvY8G1W/giphy.gif"
+    DAY_ANIMATION: str = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExMmw0eHl4eHl4eHl4eHl4eHl4eHl4eHl4eHl4eHl4eHl4eHl4eHl4JmVwPXYxX2ludGVybmFsX2dpZl9ieV9pZCZjdD1n/l0HlHFRbEzpST5f_e/giphy.gif"
 
     # ── ROL TAQSIMLASH ────────────────────────
     # Eslatma: asosiy taqsimlash endi dynamic (logic/manager.py).

@@ -2,13 +2,15 @@ from __future__ import annotations
 
 from aiogram import Router, F
 from aiogram.filters import Command
-from aiogram.types import Message
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 
 from config import settings
 from database.db import (
     add_coins,
     buy_fake_passport,
+    buy_shield,
     get_top_players,
+    get_top_elo,
     get_user_stats,
     get_wallet,
 )
@@ -17,30 +19,93 @@ from utils.texts import RULES
 router = Router()
 
 
-def _profile_text(full_name: str, stats, wallet) -> str:
-    games_played = stats.games_played if stats else 0
-    games_won = stats.games_won if stats else 0
-    win_rate = stats.win_rate if stats else 0.0
-    kills = stats.total_kills if stats else 0
-    return (
-        f"👤 <b>{full_name}</b>\n\n"
-        f"💰 Tangalar: <b>{wallet.coins}</b>\n"
-        f"🪪 Soxta passport: <b>{wallet.fake_passports}</b>\n"
-        f"📥 Jami topilgan: <b>{wallet.total_earned}</b>\n\n"
-        f"🎮 O'yinlar: <b>{games_played}</b>\n"
-        f"🏆 G'alabalar: <b>{games_won}</b>\n"
-        f"📈 Win rate: <b>{win_rate}%</b>\n"
-        f"💀 Kill: <b>{kills}</b>"
+@router.message(Command("profile"))
+async def cmd_profile(m: Message):
+    """WebApp orqali profil va do'konni ochish."""
+    if m.chat.type != "private":
+        return await m.answer("ℹ️ Bu buyruq faqat shaxsiy chatda ishlaydi.")
+    
+    # Placeholder URL — foydalanuvchi o'zining xosting linkini qo'yishi kerak.
+    # Hozircha local index.html ga ishora qilib bo'lmaydi (TG bot URL talab qiladi).
+    webapp_url = "https://your-webapp-url.com/index.html" # TODO: Update with real URL
+    
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="👤 Profil va Do'kon", web_app=WebAppInfo(url=webapp_url))]
+    ])
+    
+    await m.answer(
+        "📊 <b>STATISTIKA VA DO'KON</b>\n\n"
+        "Quyidagi tugma orqali WebApp interfeysini ochishingiz mumkin.",
+        parse_mode="HTML",
+        reply_markup=kb
     )
 
 
-@router.message(Command("profile"))
-async def cmd_profile(m: Message):
+@router.message(Command("top"))
+async def cmd_top(message: Message):
+    top_elo = await get_top_elo(10)
+    if not top_elo:
+        return await message.answer("Reyting hali shakllanmagan.")
+    
+    text = "🏆 <b>GLOBAL REYTING (ELO)</b>\n\n"
+    for i, u in enumerate(top_elo, 1):
+        text += f"{i}. {u.full_name} — ⭐️ {u.elo_rating}\n"
+    
+    await message.answer(text, parse_mode="HTML")
+
+
+@router.message(Command("buy_info"))
+async def cmd_buy_info(message: Message):
+    """O'yin ichida shubhali ma'lumot sotib olish."""
+    from logic.registry import get_game
+    game = None
+    if message.chat.type in ("group", "supergroup"):
+        game = get_game(message.chat.id)
+    
+    if not game or game.phase not in ("day", "voting"):
+        return await message.answer("⚠️ Ma'lumotni faqat o'yin davomida (kunduzi) sotib olish mumkin!")
+
+    w = await get_wallet(message.from_user.id)
+    price = settings.INFO_PRICE
+    if w.coins < price:
+        return await message.answer(f"❌ Mablag' yetarli emas! Narxi: {price} tanga.")
+
+    await add_coins(message.from_user.id, -price)
+    
+    import random
+    mafia = game.alive_mafia()
+    if mafia:
+        m = random.choice(mafia)
+        await message.answer(f"🤫 <b>MAXFIY MA'LUMOT:</b>\n\n{m.full_name} biroz shubhali ko'rinyapti... 😉", parse_mode="HTML")
+    else:
+        await message.answer("🤫 <b>MAXFIY MA'LUMOT:</b>\n\nHozircha hamma narsa tinchdek ko'rinmoqda.")
+
+
+@router.message(Command("buyshield"))
+async def cmd_buyshield(m: Message):
+    """Bir martalik shaxsiy himoya sotib olish."""
     if m.chat.type != "private":
         return await m.answer("ℹ️ Bu buyruq faqat shaxsiy chatda ishlaydi.")
-    stats = await get_user_stats(m.from_user.id)
-    wallet = await get_wallet(m.from_user.id)
-    await m.answer(_profile_text(m.from_user.full_name, stats, wallet), parse_mode="HTML")
+    
+    ok, msg, wallet = await buy_shield(m.from_user.id)
+    if ok:
+        await m.answer(
+            f"{msg}\n"
+            f"🛡️ Himoyalar: <b>{wallet.shields}</b>\n"
+            f"💰 Qolgan tanga: <b>{wallet.coins}</b>",
+            parse_mode="HTML",
+        )
+    else:
+        await m.answer(
+            f"⛔ {msg}\n"
+            f"💰 Balans: <b>{wallet.coins}</b>",
+            parse_mode="HTML",
+        )
+
+
+@router.message(Command("wallet"))
+async def cmd_wallet(m: Message):
+    await cmd_profile(m)
 
 
 @router.message(Command("coins"))
@@ -66,6 +131,10 @@ async def cmd_shop(m: Message):
         f"🛒 <b>DO'KON</b>\n\n"
         f"1) 🪪 Soxta passport — <b>{settings.FAKE_PASSPORT_PRICE}</b> tanga\n"
         f"   Xarid: <code>/buy passport</code>\n\n"
+        f"2) 🛡️ Bir martalik himoya — <b>{settings.SHIELD_PRICE}</b> tanga\n"
+        f"   Xarid: <code>/buyshield</code>\n\n"
+        f"3) 🤫 Maxfiy ma'lumot (guruhda) — <b>{settings.INFO_PRICE}</b> tanga\n"
+        f"   Xarid: <code>/buy_info</code> (faqat o'yin davomida)\n\n"
         f"Balansingiz: <b>{wallet.coins}</b> tanga",
         parse_mode="HTML",
     )

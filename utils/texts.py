@@ -147,20 +147,38 @@ def last_words_text(deadline: int) -> str:
     )
 
 
-def vote_progress_text(alive: list[Player], tally: dict[int, int], voted: int, total: int) -> str:
+def vote_progress_text(alive: list[Player], tally: dict[int, int], voted: int, total: int, votes: dict[int, tuple[int, int]], players: dict, private: bool = False) -> str:
     lines = [f"🗳️ <b>OVOZ BERISH</b> ({voted}/{total})\n"]
     for p in alive:
         cnt = tally.get(p.user_id, 0)
         bar = "🔴" * cnt + "⚪" * max(0, 5 - cnt)
-        lines.append(f"{bar} {p.full_name}: {cnt}")
+        
+        voters_str = ""
+        if not private:
+            # Bu o'yinchiga kimlar ovoz berganini yig'ish
+            voters = [players[v_id].full_name for v_id, (t_id, w) in votes.items() if t_id == p.user_id]
+            if voters:
+                voters_str = f" ({', '.join(voters)})"
+        
+        lines.append(f"{bar} {p.full_name}: {cnt}{voters_str}")
     return "\n".join(lines)
 
 
 # ══════════════════════════════════════════════
 #  IJRO
 # ══════════════════════════════════════════════
-def execution_text(executed_id: int | None, players: dict, extra: str | None) -> str:
+def execution_text(executed_id: int | None, players: dict, extra: str | None, votes: dict[int, tuple[int, int]] = None, private: bool = False) -> str:
     lines = ["⚖️ <b>OVOZ BERISH YAKUNLANDI</b>\n"]
+    
+    if not private and votes:
+        lines.append("📊 <b>Ovozlar tafsiloti:</b>")
+        for voter_id, (target_id, weight) in votes.items():
+            voter = players.get(voter_id)
+            target = players.get(target_id)
+            if voter and target:
+                lines.append(f"• {voter.full_name} -> {target.full_name}")
+        lines.append("")
+
     if executed_id:
         p = players.get(executed_id)
         if p:
@@ -172,8 +190,8 @@ def execution_text(executed_id: int | None, players: dict, extra: str | None) ->
     else:
         lines.append("🤝 Ovozlar teng taqsimlandi — hech kim chiqarilmadi.")
     if extra:
-        lines.append(extra)
-    return "\n\n".join(lines)
+        lines.append(f"\n{extra}")
+    return "\n".join(lines)
 
 
 # ══════════════════════════════════════════════

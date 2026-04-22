@@ -15,8 +15,9 @@ class Player:
     is_alive:        bool = True
     is_muted:        bool = False
     role_revealed:   bool = False    # Jurnalist oshkor qildimi
-    is_bot:          bool = False
-    bot_api_key:     Optional[str] = None
+    is_bot: bool = False
+    bot_api_key: Optional[str] = None
+    bot_trait: Optional[str] = None  # AI bot xarakteri (tajovuzkor, jim, shubhachi)
 
     # ── HIMOYA ────────────────────────────────
     protected_by_doctor:    bool = False
@@ -46,6 +47,7 @@ class Player:
     # ── STATISTIKA ────────────────────────────
     kills:             int = 0
     was_voted_out:     bool = False
+    shield_used:       bool = False   # Bir martalik himoya ishlatildimi
     days_survived:     int = 0
 
     @property

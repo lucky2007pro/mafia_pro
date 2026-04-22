@@ -28,6 +28,7 @@ class UserModel(Base):
     times_doctor   = Column(Integer, default=0)
     times_detective= Column(Integer, default=0)
     times_sheriff  = Column(Integer, default=0)
+    elo_rating     = Column(Integer, default=1000)  # ELO reytingi
     results        = relationship("GameResultModel", back_populates="user")
 
     @property
@@ -67,6 +68,7 @@ class WalletModel(Base):
     user_id         = Column(BigInteger, ForeignKey("users.id"), primary_key=True)
     coins           = Column(Integer, default=0)
     fake_passports  = Column(Integer, default=0)
+    shields         = Column(Integer, default=0)  # Bir martalik shaxsiy himoya
     total_earned    = Column(Integer, default=0)
 
 
@@ -110,6 +112,12 @@ async def save_game_result(chat_id, day_count, player_count, winner_team, player
                 if r == "doctor":    u.times_doctor += 1
                 if r == "detective": u.times_detective += 1
                 if r == "sniper":    u.times_sheriff += 1
+                
+                # ELO update
+                if pr.get("won"):
+                    u.elo_rating += 20
+                else:
+                    u.elo_rating = max(100, u.elo_rating - 10)
         await s.commit()
 
 
@@ -123,6 +131,15 @@ async def get_top_players(limit=10) -> list[UserModel]:
         r = await s.execute(
             select(UserModel).where(UserModel.games_played > 0)
             .order_by(UserModel.games_won.desc()).limit(limit)
+        )
+        return r.scalars().all()
+
+
+async def get_top_elo(limit=10) -> list[UserModel]:
+    async with Session() as s:
+        r = await s.execute(
+            select(UserModel).where(UserModel.games_played > 0)
+            .order_by(UserModel.elo_rating.desc()).limit(limit)
         )
         return r.scalars().all()
 
@@ -159,7 +176,7 @@ async def add_coins(uid: int, amount: int) -> WalletModel:
         if not w:
             if not await s.get(UserModel, uid):
                 s.add(UserModel(id=uid, username="", full_name="Unknown"))
-            w = WalletModel(user_id=uid, coins=0, fake_passports=0, total_earned=0)
+            w = WalletModel(user_id=uid, coins=0, fake_passports=0, shields=0, total_earned=0)
             s.add(w)
         w.coins = max(0, (w.coins or 0) + amount)
         if amount > 0:
@@ -175,7 +192,7 @@ async def buy_fake_passport(uid: int) -> tuple[bool, str, WalletModel]:
         if not w:
             if not await s.get(UserModel, uid):
                 s.add(UserModel(id=uid, username="", full_name="Unknown"))
-            w = WalletModel(user_id=uid, coins=0, fake_passports=0, total_earned=0)
+            w = WalletModel(user_id=uid, coins=0, fake_passports=0, shields=0, total_earned=0)
             s.add(w)
 
         if (w.coins or 0) < settings.FAKE_PASSPORT_PRICE:
@@ -188,4 +205,25 @@ async def buy_fake_passport(uid: int) -> tuple[bool, str, WalletModel]:
         await s.commit()
         await s.refresh(w)
         return True, "✅ Soxta passport xarid qilindi!", w
+
+
+async def buy_shield(uid: int) -> tuple[bool, str, WalletModel]:
+    async with Session() as s:
+        w = await s.get(WalletModel, uid)
+        if not w:
+            if not await s.get(UserModel, uid):
+                s.add(UserModel(id=uid, username="", full_name="Unknown"))
+            w = WalletModel(user_id=uid, coins=0, fake_passports=0, shields=0, total_earned=0)
+            s.add(w)
+
+        if (w.coins or 0) < settings.SHIELD_PRICE:
+            await s.commit()
+            await s.refresh(w)
+            return False, "Tangangiz yetarli emas!", w
+
+        w.coins -= settings.SHIELD_PRICE
+        w.shields = (w.shields or 0) + 1
+        await s.commit()
+        await s.refresh(w)
+        return True, "✅ Bir martalik himoya xarid qilindi!", w
 

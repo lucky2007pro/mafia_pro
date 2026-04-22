@@ -64,12 +64,28 @@ async def bot_night_action(game: GameManager, p: Player):
 
     log_text = "\n".join(game.log[-15:]) if game.log else "O'yin endi boshlandi. Voqealar hali yo'q."
     
-    prompt = f"Sen 'Mafia' o'yinida muhim qaror qabul qiluvchi aqlli botsan. Vazifang: boshqa botlar yoki insonlar bilan mantiqan o'ynash, kiberbot ekanligingni yashirib, odamlardek fikrlash.\n" \
-             f"Sening roling: {p.cfg.name_uz if p.cfg else 'Noma`lum'}. Sening o'yindagi ID raqaming: {p.user_id}.\n" \
-             f"Hozirgi bosqich: TUN.\n\n" \
-             f"Tirik o'yinchilar ro'yxati:\n" + \
-             "\n".join([f"- {x.full_name} (ID: {x.user_id})" for x in game.alive()]) + \
-             f"\n\nO'yin tarixi (so'nggi voqealar):\n{log_text}\n\n"
+    # Prompt tayyorlash
+    trait_desc = {
+        "tajovuzkor": "Siz juda tajovuzkor o'ynaysiz, tezda shubha qilasiz va boshqalarni ayblaysiz.",
+        "jim o'tiruvchi": "Siz ehtiyotkorsiz, ko'p gapirmaysiz, faqat muhim vaqtda harakat qilasiz.",
+        "shubhachi": "Siz hamma narsadan shubhalanasiz, hatto eng kichik xatoni ham payqaysiz.",
+        "mantiqiy": "Siz faqat faktlar va mantiq asosida qaror qabul qilasiz.",
+        "aldamchi": "Siz juda yaxshi aldaysiz, agar mafiya bo'lsangiz o'zingizni ideal fuqarodek ko'rsatasiz."
+    }.get(p.bot_trait or "mantiqiy", "")
+
+    lying_strategy = ""
+    if p.role in MAFIA_ROLES:
+        lying_strategy = "Siz mafiyasiz! Maqsadingiz - o'zingizni fuqarodek ko'rsatish va boshqa fuqarolarni ayblab o'yindan chiqarish. Hech qachon mafiya ekanligingizni tan olmang!"
+
+    prompt = (
+        f"Sen Mafia o'yinida botsan. Isming: {p.full_name}.\n"
+        f"Sening roling: {p.cfg.name_uz if p.cfg else 'Noma`lum'}.\n"
+        f"Sening xaraktering: {p.bot_trait}. {trait_desc}\n"
+        f"{lying_strategy}\n"
+        f"Hozir tun bosqichi. Tirik o'yinchilar: {', '.join([f'{x.full_name} (ID: {x.user_id})' for x in alive_others])}.\n"
+        f"Tungi harakating uchun bitta o'yinchining ID sini tanla.\n"
+        f"Faqat ID raqamini qaytar, boshqa matn kerak emas."
+    )
 
     valid_candidates = [x.user_id for x in alive_others]
 
@@ -150,18 +166,34 @@ async def bot_vote_action(game: GameManager, p: Player):
         
     log_text = "\n".join(game.log[-15:]) if game.log else "Hali hech narsa bo'lmadi."
         
-    prompt = f"Sen 'Mafia' o'yinida boshqalar kabi oddiy ishtirokchisan. Boshqalarni shubhalantirmaslik uchun aqlli strategiya tuzing.\n" \
-             f"Hozir OVOZ BERISH (VOTING) bosqichi. Sizning rolingiz: {p.cfg.name_uz if p.cfg else 'Noma`lum'} (ID: {p.user_id}).\n\n" \
-             f"Tirik o'yinchilar:\n" + \
-             "\n".join([f"- {x.full_name} (ID: {x.user_id})" for x in game.alive()]) + \
-             f"\n\nO'yin tarixi (shu orqali mantiqiy fikr yuriting):\n{log_text}\n\n" \
-             f"Sizning vazifangiz kim eng shubhali deb bilsangiz o'shanga ovoz berish. Agar rolingiz mafia bolsa, shaharliklarga qarshi pinhona ovoz bering.\n" \
-             f"\nQATTIQ TALAB: Javob faqat quyidagi JSON formatida bo'lishi kerak:\n" \
-             "{\n" \
-             "  \"thought\": \"Mana bu o'yinchi shubhali ko'rinyapti, chunki... Mantiqiy qarorim...\",\n" \
-             "  \"target_id\": <tanlangan o'yinchi ID raqami>\n" \
-             "}"
-             
+    # Prompt tayyorlash
+    trait_desc = {
+        "tajovuzkor": "Siz juda tajovuzkor o'ynaysiz, tezda shubha qilasiz va boshqalarni ayblaysiz.",
+        "jim o'tiruvchi": "Siz ehtiyotkorsiz, ko'p gapirmaysiz, faqat muhim vaqtda harakat qilasiz.",
+        "shubhachi": "Siz hamma narsadan shubhalanasiz, hatto eng kichik xatoni ham payqaysiz.",
+        "mantiqiy": "Siz faqat faktlar va mantiq asosida qaror qabul qilasiz.",
+        "aldamchi": "Siz juda yaxshi aldaysiz, agar mafiya bo'lsangiz o'zingizni ideal fuqarodek ko'rsatasiz."
+    }.get(p.bot_trait or "mantiqiy", "")
+
+    lying_strategy = ""
+    if p.role in MAFIA_ROLES:
+        lying_strategy = "Siz mafiyasiz! O'zingizni asrab qolish uchun boshqa fuqarolarga ovoz bering va ularni ayblang. Mafiya a'zolariga (agar bilsangiz) ovoz bermaslikka harakat qiling."
+
+    prompt = (
+        f"Sen Mafia o'yinida botsan. Isming: {p.full_name}.\n"
+        f"Sening roling: {p.cfg.name_uz if p.cfg else 'Noma`lum'}.\n"
+        f"Sening xaraktering: {p.bot_trait}. {trait_desc}\n"
+        f"{lying_strategy}\n"
+        f"Hozir ovoz berish bosqichi. Tirik o'yinchilar: {', '.join([f'{x.full_name} (ID: {x.user_id})' for x in alive_others])}.\n"
+        f"O'yin tarixi (oxirgi voqealar):\n{log_text}\n\n"
+        f"Kimga ovoz bermoqchisiz? Faqat o'yinchining ID sini qaytaring.\n"
+        f"\nQATTIQ TALAB: Javob faqat quyidagi JSON formatida bo'lishi kerak:\n"
+        "{\n"
+        "  \"thought\": \"Mana bu o'yinchi shubhali ko'rinyapti, chunki... Mantiqiy qarorim...\",\n"
+        "  \"target_id\": <tanlangan o'yinchi ID raqami>\n"
+        "}"
+    )
+
     decision = await get_gemini_decision(p.bot_api_key, prompt)
     
     valid_candidates = [x.user_id for x in alive_others]

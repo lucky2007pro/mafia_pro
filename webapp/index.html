@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mafia Bot — Statistika va Do'kon</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+        }
+        .card {
+            background-color: #2a2a2a;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+    </style>
+</head>
+<body class="p-4">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-xl font-bold">🎭 MAFIA BOT</h1>
+        <button id="close-btn" class="text-sm text-gray-400">Yopish</button>
+    </div>
+
+    <div class="card">
+        <h2 class="text-lg font-semibold mb-3">👤 PROFIL</h2>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <p class="text-xs text-gray-400">Tangalar</p>
+                <p id="coins" class="text-lg font-bold text-yellow-500">0</p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-400">ELO Reyting</p>
+                <p id="elo" class="text-lg font-bold text-blue-500">1000</p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-400">O'yinlar</p>
+                <p id="games" class="text-lg font-bold">0</p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-400">Win Rate</p>
+                <p id="winrate" class="text-lg font-bold text-green-500">0%</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2 class="text-lg font-semibold mb-3">🛒 DO'KON</h2>
+        <div class="space-y-3">
+            <div class="flex justify-between items-center p-2 bg-black bg-opacity-20 rounded">
+                <div>
+                    <p class="font-medium">🪪 Soxta Passport</p>
+                    <p class="text-xs text-gray-400">Rolni yashirish uchun</p>
+                </div>
+                <button class="bg-yellow-600 px-3 py-1 rounded text-sm">120</button>
+            </div>
+            <div class="flex justify-between items-center p-2 bg-black bg-opacity-20 rounded">
+                <div>
+                    <p class="font-medium">🛡️ Shaxsiy Himoya</p>
+                    <p class="text-xs text-gray-400">Bir martalik o'limdan</p>
+                </div>
+                <button class="bg-yellow-600 px-3 py-1 rounded text-sm">150</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        document.getElementById('close-btn').addEventListener('click', () => {
+            tg.close();
+        });
+
+        // Ma'lumotlarni yuklash (botdan API orqali kelishi kerak)
+        // Hozircha placeholder
+        const user = tg.initDataUnsafe.user;
+        if (user) {
+            console.log("Foydalanuvchi:", user.first_name);
+        }
+    </script>
+</body>
+</html>
